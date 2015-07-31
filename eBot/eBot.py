@@ -4,8 +4,6 @@ import sys
 from serial import Serial
 # import serial
 import glob
-from Tkinter import *
-import Tkinter
 
 if os.name == 'nt':
     try:
@@ -147,8 +145,6 @@ class eBot:
             except:
                 pass
             #sys.stderr.write("Could not open serial port.  Is robot turned on and connected?\n")
-            window = Tkinter.Tk()
-            window.wm_withdraw()
             #import ctypes  # An included library with Python install.
             #ctypes.windll.user32.MessageBoxA(0, "Your text", "Your title", 1)
             raise Exception("No eBot found")
@@ -168,8 +164,6 @@ class eBot:
             self.port.flushOutput()
             print "connected"
         except:
-            window = Tkinter.Tk()
-            window.wm_withdraw()
             sys.stderr.write("Could not write to serial port.\n")
             self.serialReady = False
             sys.stderr.write("Robot turned off or no longer connected.\n")
@@ -191,8 +185,6 @@ class eBot:
         if self.serialReady:
             try:
                 self.port.close()
-                window = Tkinter.Tk()
-                window.wm_withdraw()
             except:
                 self.lostConnection()
 
@@ -522,7 +514,5 @@ class eBot:
         except:
             pass
         self.serialReady = False
-        window = Tkinter.Tk()
-        window.wm_withdraw()
         raise Exception("Robot Connection Lost")
         ################################################################################
