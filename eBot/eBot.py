@@ -5,7 +5,6 @@ from serial import Serial
 # import serial
 import glob
 from Tkinter import *
-import tkMessageBox
 import Tkinter
 
 if os.name == 'nt':
@@ -150,8 +149,6 @@ class eBot:
             #sys.stderr.write("Could not open serial port.  Is robot turned on and connected?\n")
             window = Tkinter.Tk()
             window.wm_withdraw()
-            tkMessageBox.showwarning("Connection Error", "No eBot found. Please reconnect and try again.",
-                                     parent=window)
             #import ctypes  # An included library with Python install.
             #ctypes.windll.user32.MessageBoxA(0, "Your text", "Your title", 1)
             raise Exception("No eBot found")
@@ -173,7 +170,6 @@ class eBot:
         except:
             window = Tkinter.Tk()
             window.wm_withdraw()
-            tkMessageBox.showerror("COM Error", "Robot connection lost...", parent=window)
             sys.stderr.write("Could not write to serial port.\n")
             self.serialReady = False
             sys.stderr.write("Robot turned off or no longer connected.\n")
@@ -197,7 +193,6 @@ class eBot:
                 self.port.close()
                 window = Tkinter.Tk()
                 window.wm_withdraw()
-                tkMessageBox.showinfo("Successful", "eBot successfully disconnected.", parent=window)
             except:
                 self.lostConnection()
 
@@ -529,6 +524,5 @@ class eBot:
         self.serialReady = False
         window = Tkinter.Tk()
         window.wm_withdraw()
-        tkMessageBox.showerror("COM Error", "Robot connection lost...", parent=window)
         raise Exception("Robot Connection Lost")
         ################################################################################
