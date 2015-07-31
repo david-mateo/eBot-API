@@ -71,29 +71,32 @@ class eBot:
         """
         self.connect()
 
-    def connect(self):
+    def connect(self, port_path=None):
         """
         Opens connection with the eBot via BLE. Connects with the first eBot that the computer is paired to.
 
         :raise Exception: No eBot found
         """
         baudRate = 115200
-        ports = []
-        if os.name == "posix":
-            if sys.platform == "linux2":
-                #usbSerial = glob.glob('/dev/ttyUSB*')
-                ports = glob.glob('/dev/tty.eBo*')
-                #print "Support for this OS is under development."
-            elif sys.platform == "darwin":
-                ports = glob.glob('/dev/tty.eBo*')
-                #usbSerial = glob.glob('/dev/tty.usbserial*')
-            else:
-                print "Unknown posix OS."
-                sys.exit()
-        elif os.name == "nt":
-            ports = self.getOpenPorts()
-            #ports = ['COM' + str(i + 1) for i in range(256)]
-            #EBOT_PORTS = getEBotPorts()
+        if port_path:
+            ports = [port_path]
+        else:
+            ports = []
+            if os.name == "posix":
+                if sys.platform == "linux2":
+                    #usbSerial = glob.glob('/dev/ttyUSB*')
+                    ports = glob.glob('/dev/rfcomm*')
+                    #print "Support for this OS is under development."
+                elif sys.platform == "darwin":
+                    ports = glob.glob('/dev/tty.eBo*')
+                    #usbSerial = glob.glob('/dev/tty.usbserial*')
+                else:
+                    print "Unknown posix OS."
+                    sys.exit()
+            elif os.name == "nt":
+                ports = self.getOpenPorts()
+                #ports = ['COM' + str(i + 1) for i in range(256)]
+                #EBOT_PORTS = getEBotPorts()
 
         connect = 0
         ebot_ports = []
