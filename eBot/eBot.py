@@ -301,13 +301,15 @@ class eBot:
     def update_background(self):
         self.set_offset()
         while self.updating:
-            data = self.update_all()
-            #try:
-            #    data = self.update_all()
-            #except:
-            #    self.pos_values = None
-            #    self.updating = False
-            #    sys.stderr.write("eBot.update_background(): Stop updating due to error.")
+            # If update_all produces an error, the loop will end cleanly but
+            # the pos_values will be erased, so that any thread trying to
+            # access that will raise an Exception (or get nonsense).
+            try:
+                data = self.update_all()
+            except:
+                self.pos_values = None
+                self.updating = False
+                sys.stderr.write("eBot.update_background(): Stop updating due to error.")
         self.halt()
         return
 
