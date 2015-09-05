@@ -136,10 +136,10 @@ class eBot:
             try:
                 if (line[:2] == "eB"):
                     break
-                s = SafeSerial(port, baudRate, timeout=1.0, writeTimeout=1.0, lock=self.lock)
+                s = SafeSerial(port, baudRate, timeout=5.0, writeTimeout=5.0, lock=self.lock)
                 s.flushInput()
                 s.flushOutput()
-                strikes = 3
+                strikes = 10
                 while line[:2] != "eB" and strikes>0:
                     strikes-=1
                     s.write("<<1?")
