@@ -139,7 +139,7 @@ class eBot:
                 s = SafeSerial(port, baudRate, timeout=5.0, writeTimeout=5.0, lock=self.lock)
                 s.flushInput()
                 s.flushOutput()
-                strikes = 10
+                strikes = 40
                 while line[:2] != "eB" and strikes>0:
                     strikes-=1
                     s.write("<<1?")
@@ -527,7 +527,7 @@ class eBot:
                 self.port.write(myvalue)
             except:
                 self.lostConnection()
-        sleep(buzzer_time/1000)
+        return
 
     def port_name(self):
         """
@@ -575,6 +575,29 @@ class eBot:
         right_speed = int((RS + 2) * 100)
         try:
             self.port.write( "8w%i;%i"%(left_speed, right_speed) )
+        except:
+            self.lostConnection()
+        sleep(0.05)
+        return
+
+    def calibration(self, LS, RS):
+        """
+        Controls the speed of the wheels of the robot according to the specified values
+        :param LS: Speed of left motor
+        :param RS: Speed of right motor
+        """
+        if LS > 9999:
+            LS = 9999
+        elif LS < 1:
+            LS = 1
+        if RS > 9999:
+            RS = 9999
+        elif RS < 1:
+            RS = 1
+        left_calibration = str(LS).zfill(4)
+        right_calibration = str(RS).zfill(4)
+        try:
+            self.port.write( ":c%s;%s"%(left_calibration, right_calibration) )
         except:
             self.lostConnection()
         sleep(0.05)
