@@ -58,8 +58,4 @@ class Locator_EKF:
         U = P12*np.linalg.inv(R)
         self.x = x1 + U *( R.T.I*(z-z1) )
         self.P = self.P-U*U.T
-        if self.x[0,0]>pi:
-            self.x[0,0]-=2*pi
-        elif self.x[0,0]<-pi:
-            self.x[0,0]+=2*pi
         return self.x[0,0] , self.x[1,0] , self.x[2,0]
