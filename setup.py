@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from distutils.core import setup
 
 setup(name='eBotAPI',
@@ -8,5 +6,4 @@ setup(name='eBotAPI',
       author='Harsh Bhatt',
       author_email='harsh@edgebotix.com',
       # url='https://www.python.org/sigs/distutils-sig/',
-      packages=['eBot','eBot.serial'],
-     )
+      packages=['eBotAPI'])

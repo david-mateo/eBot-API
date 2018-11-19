@@ -1,27 +1,27 @@
-from time import *
+from time import sleep
 import os
 import sys
 from math import degrees, pi
 import glob
 import serial
-import threading, thread
-from Locator_EKF import Locator_EKF
-
+from threading import Lock, Thread
+from .Locator_EKF import Locator_EKF
 
 if os.name == 'nt':
     try:
         import _winreg as winreg
-    except:
+    except ImportError:
         pass
+
 
 class SafeSerial(serial.Serial):
     def __init__(self, *args, **kws):
-        lock = kws.pop("lock",None)
-        if isinstance(lock,thread.LockType):
+        lock = kws.pop("lock", None)
+        if isinstance(lock, type(Lock())):
             self.lock = lock
         else:
-            self.lock = threading.Lock()
-        super(SafeSerial, self).__init__(*args,**kws)
+            self.lock = Lock()
+        super(SafeSerial, self).__init__(*args, **kws)
         return
 
     def readline(self):
@@ -29,9 +29,9 @@ class SafeSerial(serial.Serial):
             m = super(SafeSerial, self).readline()
         return m
 
-    def write(self, *args,**kws):
+    def write(self, *args, **kws):
         with self.lock:
-            m = super(SafeSerial, self).write(*args,**kws)
+            m = super(SafeSerial, self).write(*args, **kws)
         return m
 
     def flushInput(self):
@@ -46,7 +46,7 @@ class SafeSerial(serial.Serial):
 
 
 class eBot:
-    def __init__(self, pos=(0.,0.), heading=0., lock=None):
+    def __init__(self, pos=(0., 0.), heading=0., lock=None):
         self.sonarValues = [0, 0, 0, 0, 0, 0]
         self.all_Values = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         self.port = None
@@ -74,15 +74,17 @@ class eBot:
 
     def getOpenPorts(self):
         """
-        Windows only function: Obtains a list of tuples with eBot-relevant port number and description.
+        Windows only function: Obtains a list of tuples with eBot-relevant port
+        number and description.
 
         :rtype: list
-        :return: devicePorts: list of port numbers and descriptions of relevant serial devices.
+        :return: devicePorts: list of port numbers and descriptions of relevant
+                              serial devices.
         """
         path = 'HARDWARE\\DEVICEMAP\\SERIALCOMM'
         key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path)
         ports = []
-        #maximum 256 entries, will break anyways
+        # maximum 256 entries, will break anyways
         for i in range(256):
             try:
                 val = winreg.EnumValue(key, i)
@@ -93,14 +95,16 @@ class eBot:
                 break
         devicePorts = []
         for port in ports:
-            #Just because it is formatted that way...
-            if 'BthModem' in port[1][8:] or 'VCP' in port[1][8:] or 'ProlificSerial' in port[1][8:]:
+            # Just because it is formatted that way...
+            if 'BthModem' in port[1][8:] or 'VCP' in port[1][8:] or \
+               'ProlificSerial' in port[1][8:]:
                 devicePorts.append((int(port[0][3:]) - 1))
         return devicePorts
 
     def open(self):
         """
-        Opens connection with the eBot via BLE. Connects with the first eBot that the computer is paired to.
+        Opens connection with the eBot via BLE. Connects with the first eBot
+        that the computer is paired to.
 
         :raise Exception: No eBot found
         """
@@ -108,7 +112,8 @@ class eBot:
 
     def connect(self, port_path=None):
         """
-        Opens connection with the eBot via BLE. Connects with the first eBot that the computer is paired to.
+        Opens connection with the eBot via BLE. Connects with the first eBot
+        that the computer is paired to.
 
         :raise Exception: No eBot found
         """
@@ -130,18 +135,19 @@ class eBot:
 
         connect = 0
         line = "a"
-        print "# Connecting",
+        print("# Connecting", end="")
         for port in ports:
-            print ".",
+            print(".", end="")
             try:
                 if (line[:2] == "eB"):
                     break
-                s = SafeSerial(port, baudRate, timeout=5.0, writeTimeout=5.0, lock=self.lock)
+                s = SafeSerial(port, baudRate, timeout=5.0, writeTimeout=5.0,
+                               lock=self.lock)
                 s.flushInput()
                 s.flushOutput()
                 strikes = 40
-                while line[:2] != "eB" and strikes>0:
-                    strikes-=1
+                while line[:2] != "eB" and strikes > 0:
+                    strikes -= 1
                     s.write("<<1?")
                     sleep(0.5)
                     line = s.readline()
@@ -153,16 +159,16 @@ class eBot:
                     self.port.flushOutput()
                 else:
                     s.close()
-            except:
+            except Exception:
                 try:
                     s.close()
-                except:
+                except Exception:
                     pass
 
         if (connect == 0):
             try:
                 s.close()
-            except:
+            except Exception:
                 pass
             raise Exception("No eBot found")
 
@@ -170,7 +176,8 @@ class eBot:
             self.port.write('<<1E')
             sleep(0.4)
             line = self.port.readline()
-            if (line != ">>1B\n" and line != ">>1B" and line != ">>\n" and line != ">>"):
+            if line != ">>1B\n" and line != ">>1B" and line != ">>\n" and \
+               line != ">>":
                 self.lostConnection()
             self.port.write("<<1O")
             sleep(0.4)
@@ -178,9 +185,9 @@ class eBot:
             sleep(0.2)
             self.port.flushInput()
             self.port.flushOutput()
-            print "Done"
+            print("Done")
             self.serialReady = True
-        except:
+        except Exception:
             sys.stderr.write("Could not write to serial port.\n")
             self.serialReady = False
             sys.stderr.write("Robot turned off or no longer connected.\n")
@@ -189,14 +196,15 @@ class eBot:
 
     def start_update_background(self):
         if not self.updating:
-            self.update_thread = threading.Thread(target= self.update_background)
+            self.update_thread = Thread(target=self.update_background)
             self.updating = True
             self.update_thread.start()
-            print "# Turning on localization procedure. Computing offset",
+            print("# Turning on localization procedure. Computing offset",
+                  end=" ")
             while not self.offset:
                 sleep(0.5)
-                print ". ",
-            print "Done"
+                print(". ", end=" ")
+            print("Done")
         return
 
     def stop_update_background(self):
@@ -204,38 +212,37 @@ class eBot:
         if self.update_thread.is_alive():
             self.update_thread.join(5)
         if self.update_thread.is_alive():
-            raise Exception("eBot: Could not stop update_background thread properly")
+            raise Exception("Could not stop update_background thread properly")
         return
 
-    def read_all(self, num_fields = 20):
-        ## Uncomment this if request-based data
-        ## transfer is implemented
-        #if self.serialReady:
+    def read_all(self):
+        # Uncomment this if request-based data
+        # transfer is implemented
+        # if self.serialReady:
         #    try:
         #       self.port.write("2S")
         #    except:
         #        self.lostConnection()
-        #line = self.port.readline()
-        line=None
-        while self.port.inWaiting() > 90: # one message now is 105 chars long
-            line=self.port.readline()
+        # line = self.port.readline()
+        line = None
+        while self.port.inWaiting() > 90:  # one message is 105 chars long
+            line = self.port.readline()
         if line:
             try:
                 data = [float(x) for x in line.rstrip('\n').split(";")]
-                assert  len(data)==num_fields
-            except:
-                sys.stderr.write("eBot.read_all(): Expected %s of floats. Got this:"%num_fields)
+            except Exception:
+                sys.stderr.write("Bad format message:")
                 sys.stderr.write(line)
-                data=[]
+                data = []
         else:
-            data=[]
+            data = []
         return data
 
     def set_offset(self):
         if not self.offset:
-            data=[]
+            data = []
             while not data:
-                data = self.read_all(20)
+                data = self.read_all()
             self.Ax_offset = data[1]
             self.Ay_offset = data[2]
             self.Az_offset = data[3]
@@ -243,9 +250,9 @@ class eBot:
             self.Gy_offset = data[5]
             self.Gz_offset = data[6]
             for i in range(self.offset_counter_iteration):
-                data=[]
+                data = []
                 while not data:
-                    data = self.read_all(20)
+                    data = self.read_all()
                 self.Ax_offset += data[1]
                 self.Ay_offset += data[2]
                 self.Az_offset += data[3]
@@ -274,27 +281,34 @@ class eBot:
         return
 
     def update_all(self):
-        data = self.read_all(20)
+        data = self.read_all()
         if data:
             self.prev_time_stamp = self.time_stamp
-            self.time_stamp , self.Ax , self.Ay , self.Az , self.Gx , self.Gy , self.Gz , \
-                self.Ultrasonic_rear_right, self.Ultrasonic_right, self.Ultrasonic_front , \
-                self.Ultrasonic_left , self.Ultrasonic_rear_left , self.Ultrasonic_back , \
-                self.encoder_right , self.encoder_left , self.LDR_top , self.LDR_front , \
-                self.temperature_sensor , self.voltage , self.current = data
+            self.time_stamp, self.Ax, self.Ay, self.Az, self.Gx, self.Gy,
+            self.Gz, self.Ultrasonic_rear_right, self.Ultrasonic_right,
+            self.Ultrasonic_front, self.Ultrasonic_left,
+            self.Ultrasonic_rear_left, self.Ultrasonic_back,
+            self.encoder_right, self.encoder_left, self.LDR_top,
+            self.LDR_front, self.temperature_sensor, self.voltage,
+            self.current = data
         else:
             return data
-        sampling_time = (self.time_stamp-self.prev_time_stamp)/1000.
-        if sampling_time>0:
-            if abs(self.Gz-self.Gz_offset)>50: # to remove the noise
-                self.gyro_heading += sampling_time*(self.Gz-self.Gz_offset)/130.5 # the integration to get the heading
-            heading_scaled = self.gyro_heading  % 360.
-            if heading_scaled>180:
-                heading_scaled-=360
-            elif heading_scaled<-180:
-                heading_scaled+=360
+        sampling_time = (self.time_stamp - self.prev_time_stamp) / 1000.
+        if sampling_time > 0:
+            if abs(self.Gz - self.Gz_offset) > 50:  # to remove the noise
+                # the integration to get the heading
+                delta = (self.Gz - self.Gz_offset) / 130.5
+                self.gyro_heading += sampling_time * delta
+            heading_scaled = self.gyro_heading % 360.
+            if heading_scaled > 180:
+                heading_scaled -= 360
+            elif heading_scaled < -180:
+                heading_scaled += 360
             self.pos_values[0], self.pos_values[1], self.pos_values[2] = \
-                self.EKF.update_state([heading_scaled*pi/180.,self.encoder_right/1000.,self.encoder_left/1000.],sampling_time)
+                self.EKF.update_state([heading_scaled * pi / 180.,
+                                       self.encoder_right / 1000.,
+                                       self.encoder_left / 1000.],
+                                      sampling_time)
             self.pos_values[2] = degrees(self.pos_values[2])
         return data
 
@@ -305,11 +319,11 @@ class eBot:
             # the pos_values will be erased, so that any thread trying to
             # access that will raise an Exception (or get nonsense).
             try:
-                data = self.update_all()
-            except:
+                self.update_all()
+            except Exception:
                 self.pos_values = None
                 self.updating = False
-                sys.stderr.write("eBot.update_background(): Stop updating due to error.")
+                sys.stderr.write("eBot stop updating due to error.")
         self.halt()
         return
 
@@ -319,7 +333,7 @@ class eBot:
         """
         self.disconnect()
 
-    #TODO: add disconnect feedback to robot
+    # TODO: add disconnect feedback to robot
     def disconnect(self):
         """
         Close BLE connection with eBot.
@@ -328,12 +342,12 @@ class eBot:
         if self.serialReady:
             try:
                 self.port.close()
-            except:
+            except Exception:
                 self.lostConnection()
 
     def robot_uS(self):
         """
-        Retrieves and returns all six ultrasonic sensor values from the eBot in meters.
+        Retrieves and returns all six ultrasonic sensor values in meters.
 
         :rtype: list
         :return: sonarValues
@@ -356,7 +370,7 @@ class eBot:
         if self.serialReady:
             try:
                 self.port.write("2C")
-            except:
+            except Exception:
                 self.lostConnection()
         line = self.port.readline()
         values = line.split(";")
@@ -364,7 +378,7 @@ class eBot:
             if self.serialReady:
                 try:
                     self.port.write("2C")
-                except:
+                except Exception:
                     self.lostConnection()
             line = self.port.readline()
             values = line.split(";")
@@ -387,7 +401,7 @@ class eBot:
         if self.serialReady:
             try:
                 self.port.write("2H")
-            except:
+            except Exception:
                 self.lostConnection()
         sleep(0.05)
 
@@ -412,7 +426,7 @@ class eBot:
         if self.serialReady:
             try:
                 self.port.write("2L")
-            except:
+            except Exception:
                 self.lostConnection()
         sleep(0.05)
 
@@ -423,13 +437,14 @@ class eBot:
         if self.serialReady:
             try:
                 self.port.write("2l")
-            except:
+            except Exception:
                 self.lostConnection()
         sleep(0.05)
 
     def light(self):
         """
-        Retrieves and returns a list of tuples with the light index. 0 index is front and 1st index is top LDR readings.
+        Retrieves and returns a list of tuples with the light index. 0 index is
+        front and 1st index is top LDR readings.
 
         :rtype: list
         :return: ldrvalue: LDR Readings
@@ -438,35 +453,33 @@ class eBot:
         self.ldrvalue[1] = float(self.LDR_top)
         return self.ldrvalue
 
-    #Double check true vs. false
+    # Double check true vs. false
     def obstacle(self):
         """
-        Tells whether or not there is an obstacle less than 250 mm away from the front of the eBot.
+        Tells whether or not there is an obstacle less than 250 mm away from
+        the front of the eBot.
 
         :rtype: bool
         :return: True if obstacle exists
         """
-        if self.Ultrasonic_front>250:
-            return False
-        else:
-            return True
+        return self.Ultrasonic_front <= 250
 
-
-    #TODO: implement x, y, z returns and a seperate odometry function
+    # TODO: implement x, y, z returns and a seperate odometry function
     def acceleration(self):
         """
-        Retrieves and returns accelerometer values; absolute values of X,Y and theta coordinates of robot with reference
+        Retrieves and returns accelerometer values; absolute values of X,Y and
+        theta coordinates of robot with reference
         to starting position.
 
         :rtype: list
         :return: acc_values: Accelerometer values
         """
-        self.acc_values[0] = float(self.Ax-self.Ax_offset)
-        self.acc_values[1] = float(self.Ay-self.Ay_offset)
-        self.acc_values[2] = float(self.Az-self.Az_offset)
-        self.acc_values[3] = float(self.Gx-self.Gx_offset)
-        self.acc_values[4] = float(self.Gy-self.Gy_offset)
-        self.acc_values[5] = float(self.Gz-self.Gz_offset)
+        self.acc_values[0] = float(self.Ax - self.Ax_offset)
+        self.acc_values[1] = float(self.Ay - self.Ay_offset)
+        self.acc_values[2] = float(self.Az - self.Az_offset)
+        self.acc_values[3] = float(self.Gx - self.Gx_offset)
+        self.acc_values[4] = float(self.Gy - self.Gy_offset)
+        self.acc_values[5] = float(self.Gz - self.Gz_offset)
         return self.acc_values
 
     def position(self):
@@ -478,7 +491,7 @@ class eBot:
         """
         return self.pos_values
 
-    #TODO: implement temperature feedback from MPU6050 IC
+    # TODO: implement temperature feedback from MPU6050 IC
     def temperature(self):
         """
         Retrieves and returns temperature reading from the eBot.
@@ -505,7 +518,7 @@ class eBot:
         if self.serialReady:
             try:
                 self.port.write("2b")
-            except:
+            except Exception:
                 self.lostConnection()
 
     def buzzer(self, btime, bfreq):
@@ -519,13 +532,13 @@ class eBot:
         buzzer_frequency = int(bfreq)
         bt1 = str(buzzer_time)
         bf1 = str(buzzer_frequency)
-        str_len = len(bt1) + len(bf1)+2
-        str_len =str_len + 48
+        str_len = len(bt1) + len(bf1) + 2
+        str_len = str_len + 48
         myvalue = chr(str_len) + 'B' + bt1 + ';' + bf1
         if self.serialReady:
             try:
                 self.port.write(myvalue)
-            except:
+            except Exception:
                 self.lostConnection()
         return
 
@@ -537,7 +550,6 @@ class eBot:
         """
         return self.port
 
-
     def port_close(self):
         """
         Closes the COM port that corresponds to the eBot object.
@@ -546,11 +558,11 @@ class eBot:
         """
         try:
             self.port.close()
-        except:
+        except Exception:
             self.serialReady = False
             raise Exception("Could not close COM port.")
 
-    #TODO: Add com port argument functionality
+    # TODO: Add com port argument functionality
     def port_open(self):
         """
         Still under development, currently just calls connect
@@ -559,7 +571,7 @@ class eBot:
 
     def wheels(self, LS, RS):
         """
-        Controls the speed of the wheels of the robot according to the specified values
+        Controls the speed of the wheels of the robot.
         :param LS: Speed of left motor
         :param RS: Speed of right motor
         """
@@ -574,15 +586,15 @@ class eBot:
         left_speed = int((LS + 2) * 100)
         right_speed = int((RS + 2) * 100)
         try:
-            self.port.write( "8w%i;%i"%(left_speed, right_speed) )
-        except:
+            self.port.write("8w{:d};{:d}".format(left_speed, right_speed))
+        except Exception:
             self.lostConnection()
         sleep(0.05)
         return
 
     def calibration(self, LS, RS):
         """
-        Controls the speed of the wheels of the robot according to the specified values
+        Calibrates the wheels of the robot.
         :param LS: Speed of left motor
         :param RS: Speed of right motor
         """
@@ -597,8 +609,9 @@ class eBot:
         left_calibration = str(LS).zfill(4)
         right_calibration = str(RS).zfill(4)
         try:
-            self.port.write( ":c%s;%s"%(left_calibration, right_calibration) )
-        except:
+            self.port.write(":c{:s};{:s}".format(left_calibration,
+                                                 right_calibration))
+        except Exception:
             self.lostConnection()
         sleep(0.05)
         return
@@ -611,8 +624,7 @@ class eBot:
         """
         try:
             self.port.close()
-        except:
+        except Exception:
             pass
         self.serialReady = False
         raise Exception("Robot Connection Lost")
-        ################################################################################
