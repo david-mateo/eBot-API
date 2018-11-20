@@ -27,11 +27,13 @@ class SafeSerial(serial.Serial):
     def readline(self):
         with self.lock:
             m = super(SafeSerial, self).readline()
-        return m
+        return m.decode()
 
-    def write(self, *args, **kws):
+    def write(self, mess, **kws):
+        if not isinstance(mess, bytes):
+            mess = mess.encode()
         with self.lock:
-            m = super(SafeSerial, self).write(*args, **kws)
+            m = super(SafeSerial, self).write(mess, **kws)
         return m
 
     def flushInput(self):
@@ -284,13 +286,13 @@ class eBot:
         data = self.read_all()
         if data:
             self.prev_time_stamp = self.time_stamp
-            self.time_stamp, self.Ax, self.Ay, self.Az, self.Gx, self.Gy,
-            self.Gz, self.Ultrasonic_rear_right, self.Ultrasonic_right,
-            self.Ultrasonic_front, self.Ultrasonic_left,
-            self.Ultrasonic_rear_left, self.Ultrasonic_back,
-            self.encoder_right, self.encoder_left, self.LDR_top,
-            self.LDR_front, self.temperature_sensor, self.voltage,
-            self.current = data
+            self.time_stamp, self.Ax, self.Ay, self.Az, self.Gx, self.Gy, \
+                self.Gz, self.Ultrasonic_rear_right, self.Ultrasonic_right, \
+                self.Ultrasonic_front, self.Ultrasonic_left, \
+                self.Ultrasonic_rear_left, self.Ultrasonic_back, \
+                self.encoder_right, self.encoder_left, self.LDR_top, \
+                self.LDR_front, self.temperature_sensor, self.voltage, \
+                self.current = data
         else:
             return data
         sampling_time = (self.time_stamp - self.prev_time_stamp) / 1000.
@@ -320,10 +322,10 @@ class eBot:
             # access that will raise an Exception (or get nonsense).
             try:
                 self.update_all()
-            except Exception:
+            except Exception as ex:
                 self.pos_values = None
                 self.updating = False
-                sys.stderr.write("eBot stop updating due to error.")
+                raise ex
         self.halt()
         return
 
